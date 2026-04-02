@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/assets/fonts/PlusJakartaSans.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 1rem;
+
+    /* Pixora dark theme tokens (OKLCH L C H) */
+    --background: 0.12 0.012 250;
+    --foreground: 0.91 0.012 250;
+    --card: 0.19 0.016 250;
+    --card-foreground: 0.91 0.012 250;
+    --popover: 0.21 0.018 250;
+    --popover-foreground: 0.91 0.012 250;
+    --primary: 0.57 0.22 262;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.26 0.018 250;
+    --secondary-foreground: 0.91 0.012 250;
+    --muted: 0.21 0.018 250;
+    --muted-foreground: 0.67 0.025 235;
+    --accent: 0.26 0.018 250;
+    --accent-foreground: 0.91 0.012 250;
+    --destructive: 0.59 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.24 0.016 250;
+    --input: 0.24 0.016 250;
+    --ring: 0.57 0.22 262;
+    --sidebar: 0.15 0.015 250;
+    --sidebar-foreground: 0.91 0.012 250;
+    --sidebar-primary: 0.57 0.22 262;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.24 0.016 250;
+    --sidebar-accent-foreground: 0.91 0.012 250;
+    --sidebar-border: 0.24 0.016 250;
+    --sidebar-ring: 0.57 0.22 262;
+    --chart-1: 0.57 0.22 262;
+    --chart-2: 0.67 0.17 160;
+    --chart-3: 0.75 0.18 85;
+    --chart-4: 0.63 0.25 300;
+    --chart-5: 0.65 0.24 20;
+  }
+
+  .dark {
+    --background: 0.12 0.012 250;
+    --foreground: 0.91 0.012 250;
+    --card: 0.19 0.016 250;
+    --card-foreground: 0.91 0.012 250;
+    --popover: 0.21 0.018 250;
+    --popover-foreground: 0.91 0.012 250;
+    --primary: 0.57 0.22 262;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.26 0.018 250;
+    --secondary-foreground: 0.91 0.012 250;
+    --muted: 0.21 0.018 250;
+    --muted-foreground: 0.67 0.025 235;
+    --accent: 0.26 0.018 250;
+    --accent-foreground: 0.91 0.012 250;
+    --destructive: 0.59 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.24 0.016 250;
+    --input: 0.24 0.016 250;
+    --ring: 0.57 0.22 262;
+    --sidebar: 0.15 0.015 250;
+    --sidebar-foreground: 0.91 0.012 250;
+    --sidebar-primary: 0.57 0.22 262;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.24 0.016 250;
+    --sidebar-accent-foreground: 0.91 0.012 250;
+    --sidebar-border: 0.24 0.016 250;
+    --sidebar-ring: 0.57 0.22 262;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    background-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      oklch(0.17 0.022 252 / 0.6),
+      transparent 70%
+    );
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .pixora-card {
+    background: oklch(var(--card));
+    border: 1px solid oklch(var(--border));
+    border-radius: 1.25rem;
+    box-shadow: 0 4px 24px 0 oklch(0.05 0 0 / 0.5);
+  }
+
+  .pixora-sidebar {
+    background: oklch(var(--sidebar));
+    border-right: 1px solid oklch(var(--sidebar-border));
+  }
+
+  .nav-item-active {
+    background: oklch(0.22 0.035 262);
+    color: oklch(var(--primary));
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer;
+    color: oklch(var(--muted-foreground));
+  }
+
+  .nav-item:hover {
+    background: oklch(var(--sidebar-accent));
+    color: oklch(var(--foreground));
+  }
+
+  .avatar-fallback-gradient {
+    background: linear-gradient(
+      135deg,
+      oklch(0.52 0.2 262),
+      oklch(0.47 0.2 305)
+    );
+  }
+}
