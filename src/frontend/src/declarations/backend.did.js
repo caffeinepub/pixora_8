@@ -39,6 +39,14 @@ export const Profile = IDL.Record({
   'username' : IDL.Text,
   'profilePicture' : ExternalBlob,
 });
+export const Reel = IDL.Record({
+  'id' : IDL.Nat,
+  'authorUsername' : IDL.Text,
+  'video' : ExternalBlob,
+  'author' : IDL.Principal,
+  'timestamp' : Timestamp,
+  'caption' : IDL.Text,
+});
 export const Comment = IDL.Record({
   'id' : IDL.Nat,
   'authorUsername' : IDL.Text,
@@ -46,6 +54,21 @@ export const Comment = IDL.Record({
   'author' : IDL.Principal,
   'timestamp' : Timestamp,
   'postId' : IDL.Nat,
+});
+export const Message = IDL.Record({
+  'id' : IDL.Nat,
+  'text' : IDL.Text,
+  'recipient' : IDL.Principal,
+  'sender' : IDL.Principal,
+  'timestamp' : Timestamp,
+});
+export const ReelComment = IDL.Record({
+  'id' : IDL.Nat,
+  'authorUsername' : IDL.Text,
+  'text' : IDL.Text,
+  'author' : IDL.Principal,
+  'timestamp' : Timestamp,
+  'reelId' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
@@ -77,14 +100,24 @@ export const idlService = IDL.Service({
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
+  'addReelComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createPost' : IDL.Func([ExternalBlob, IDL.Text], [IDL.Nat], []),
+  'createReel' : IDL.Func([ExternalBlob, IDL.Text], [IDL.Nat], []),
   'getAllPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
   'getAllProfiles' : IDL.Func([], [IDL.Vec(Profile)], ['query']),
+  'getAllReels' : IDL.Func([], [IDL.Vec(Reel)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(Profile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getComments' : IDL.Func([IDL.Nat], [IDL.Vec(Comment)], ['query']),
+  'getConversation' : IDL.Func([IDL.Principal], [IDL.Vec(Message)], ['query']),
+  'getConversations' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
   'getFollowerCount' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
+  'getFollowers' : IDL.Func(
+      [IDL.Principal],
+      [IDL.Vec(IDL.Principal)],
+      ['query'],
+    ),
   'getFollowing' : IDL.Func(
       [IDL.Principal],
       [IDL.Vec(IDL.Principal)],
@@ -95,13 +128,30 @@ export const idlService = IDL.Service({
   'getPost' : IDL.Func([IDL.Nat], [Post], ['query']),
   'getPostsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
   'getProfile' : IDL.Func([IDL.Principal], [Profile], ['query']),
+  'getReelComments' : IDL.Func([IDL.Nat], [IDL.Vec(ReelComment)], ['query']),
+  'getReelLikeCount' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
+  'getReelsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Reel)], ['query']),
+  'getSuggestedUsers' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+      ['query'],
+    ),
   'getUserProfile' : IDL.Func([IDL.Principal], [IDL.Opt(Profile)], ['query']),
   'hasLiked' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
+  'hasLikedReel' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isFollowing' : IDL.Func([IDL.Principal], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([Profile], [], []),
+  'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(Post)], ['query']),
+  'searchUsers' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+      ['query'],
+    ),
+  'sendMessage' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Nat], []),
   'toggleFollow' : IDL.Func([IDL.Principal], [], []),
   'toggleLike' : IDL.Func([IDL.Nat], [], []),
+  'toggleReelLike' : IDL.Func([IDL.Nat], [], []),
   'updateProfile' : IDL.Func([IDL.Text, IDL.Text, ExternalBlob], [], []),
 });
 
@@ -139,6 +189,14 @@ export const idlFactory = ({ IDL }) => {
     'username' : IDL.Text,
     'profilePicture' : ExternalBlob,
   });
+  const Reel = IDL.Record({
+    'id' : IDL.Nat,
+    'authorUsername' : IDL.Text,
+    'video' : ExternalBlob,
+    'author' : IDL.Principal,
+    'timestamp' : Timestamp,
+    'caption' : IDL.Text,
+  });
   const Comment = IDL.Record({
     'id' : IDL.Nat,
     'authorUsername' : IDL.Text,
@@ -146,6 +204,21 @@ export const idlFactory = ({ IDL }) => {
     'author' : IDL.Principal,
     'timestamp' : Timestamp,
     'postId' : IDL.Nat,
+  });
+  const Message = IDL.Record({
+    'id' : IDL.Nat,
+    'text' : IDL.Text,
+    'recipient' : IDL.Principal,
+    'sender' : IDL.Principal,
+    'timestamp' : Timestamp,
+  });
+  const ReelComment = IDL.Record({
+    'id' : IDL.Nat,
+    'authorUsername' : IDL.Text,
+    'text' : IDL.Text,
+    'author' : IDL.Principal,
+    'timestamp' : Timestamp,
+    'reelId' : IDL.Nat,
   });
   
   return IDL.Service({
@@ -177,14 +250,28 @@ export const idlFactory = ({ IDL }) => {
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
+    'addReelComment' : IDL.Func([IDL.Nat, IDL.Text], [IDL.Nat], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createPost' : IDL.Func([ExternalBlob, IDL.Text], [IDL.Nat], []),
+    'createReel' : IDL.Func([ExternalBlob, IDL.Text], [IDL.Nat], []),
     'getAllPosts' : IDL.Func([], [IDL.Vec(Post)], ['query']),
     'getAllProfiles' : IDL.Func([], [IDL.Vec(Profile)], ['query']),
+    'getAllReels' : IDL.Func([], [IDL.Vec(Reel)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(Profile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getComments' : IDL.Func([IDL.Nat], [IDL.Vec(Comment)], ['query']),
+    'getConversation' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(Message)],
+        ['query'],
+      ),
+    'getConversations' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
     'getFollowerCount' : IDL.Func([IDL.Principal], [IDL.Nat], ['query']),
+    'getFollowers' : IDL.Func(
+        [IDL.Principal],
+        [IDL.Vec(IDL.Principal)],
+        ['query'],
+      ),
     'getFollowing' : IDL.Func(
         [IDL.Principal],
         [IDL.Vec(IDL.Principal)],
@@ -195,13 +282,30 @@ export const idlFactory = ({ IDL }) => {
     'getPost' : IDL.Func([IDL.Nat], [Post], ['query']),
     'getPostsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Post)], ['query']),
     'getProfile' : IDL.Func([IDL.Principal], [Profile], ['query']),
+    'getReelComments' : IDL.Func([IDL.Nat], [IDL.Vec(ReelComment)], ['query']),
+    'getReelLikeCount' : IDL.Func([IDL.Nat], [IDL.Nat], ['query']),
+    'getReelsByUser' : IDL.Func([IDL.Principal], [IDL.Vec(Reel)], ['query']),
+    'getSuggestedUsers' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+        ['query'],
+      ),
     'getUserProfile' : IDL.Func([IDL.Principal], [IDL.Opt(Profile)], ['query']),
     'hasLiked' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
+    'hasLikedReel' : IDL.Func([IDL.Nat], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isFollowing' : IDL.Func([IDL.Principal], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([Profile], [], []),
+    'searchPosts' : IDL.Func([IDL.Text], [IDL.Vec(Post)], ['query']),
+    'searchUsers' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(IDL.Tuple(IDL.Principal, Profile))],
+        ['query'],
+      ),
+    'sendMessage' : IDL.Func([IDL.Principal, IDL.Text], [IDL.Nat], []),
     'toggleFollow' : IDL.Func([IDL.Principal], [], []),
     'toggleLike' : IDL.Func([IDL.Nat], [], []),
+    'toggleReelLike' : IDL.Func([IDL.Nat], [], []),
     'updateProfile' : IDL.Func([IDL.Text, IDL.Text, ExternalBlob], [], []),
   });
 };

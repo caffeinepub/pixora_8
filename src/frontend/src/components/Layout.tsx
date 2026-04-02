@@ -1,7 +1,17 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Home, LogOut, PlusSquare, Search, User } from "lucide-react";
+import {
+  Bell,
+  Film,
+  Home,
+  LogOut,
+  MessageCircle,
+  PlusSquare,
+  Search,
+  User,
+  Users,
+} from "lucide-react";
 import type { AppView } from "../App";
 import type { Profile } from "../backend";
 import { useActor } from "../hooks/useActor";
@@ -43,7 +53,11 @@ export default function Layout({
 
   const navItems = [
     { view: "feed" as AppView, icon: Home, label: "Home" },
+    { view: "search" as AppView, icon: Search, label: "Search" },
     { view: "upload" as AppView, icon: PlusSquare, label: "Upload" },
+    { view: "reels" as AppView, icon: Film, label: "Reels" },
+    { view: "chat" as AppView, icon: MessageCircle, label: "Chat" },
+    { view: "friends" as AppView, icon: Users, label: "Friends" },
     { view: "profile" as AppView, icon: User, label: "Profile" },
   ];
 
@@ -155,15 +169,18 @@ export default function Layout({
           </div>
         </div>
 
-        {/* Desktop search bar */}
+        {/* Desktop search bar — clicking navigates to search page */}
         <div className="hidden lg:flex items-center gap-3 px-6 pt-5 pb-2">
           <div className="flex-1 relative max-w-lg">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <button
+              type="button"
               data-ocid="nav.search_input"
-              placeholder="Search Pixora..."
-              className="w-full pl-9 pr-4 h-10 bg-muted border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+              onClick={() => navigate("search")}
+              className="w-full pl-9 pr-4 h-10 bg-muted border border-border rounded-xl text-sm text-muted-foreground text-left focus:outline-none focus:ring-2 focus:ring-ring hover:bg-accent transition-colors"
+            >
+              Search Pixora...
+            </button>
           </div>
         </div>
 
@@ -178,7 +195,7 @@ export default function Layout({
 
       {/* MOBILE BOTTOM NAV */}
       <nav className="lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-1 px-5 py-3 rounded-2xl bg-card border border-border shadow-card backdrop-blur">
+        <div className="flex items-center gap-1 px-3 py-3 rounded-2xl bg-card border border-border shadow-card backdrop-blur">
           {navItems.map(({ view, icon: Icon, label }) => (
             <button
               type="button"
@@ -186,15 +203,15 @@ export default function Layout({
               data-ocid={`mobile.nav.${view}.button`}
               onClick={() => navigate(view)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-all duration-150",
+                "flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all duration-150",
                 currentView === view
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
               title={label}
             >
-              <Icon className="w-6 h-6" />
-              <span className="text-xs font-medium">{label}</span>
+              <Icon className="w-5 h-5" />
+              <span className="text-[9px] font-medium">{label}</span>
             </button>
           ))}
         </div>

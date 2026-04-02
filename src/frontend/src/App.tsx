@@ -7,12 +7,24 @@ import Layout from "./components/Layout";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import AuthPage from "./pages/AuthPage";
+import Chat from "./pages/Chat";
 import Feed from "./pages/Feed";
+import Friends from "./pages/Friends";
 import OnboardingPage from "./pages/OnboardingPage";
 import ProfilePage from "./pages/Profile";
+import Reels from "./pages/Reels";
+import Search from "./pages/Search";
 import Upload from "./pages/Upload";
 
-export type AppView = "feed" | "upload" | "profile" | "user-profile";
+export type AppView =
+  | "feed"
+  | "upload"
+  | "profile"
+  | "user-profile"
+  | "search"
+  | "friends"
+  | "reels"
+  | "chat";
 
 export interface AppState {
   view: AppView;
@@ -118,6 +130,14 @@ export default function App() {
             navigate={navigate}
           />
         );
+      case "search":
+        return <Search navigate={navigate} />;
+      case "friends":
+        return <Friends navigate={navigate} />;
+      case "reels":
+        return <Reels navigate={navigate} />;
+      case "chat":
+        return <Chat navigate={navigate} />;
       default:
         return <Feed navigate={navigate} />;
     }

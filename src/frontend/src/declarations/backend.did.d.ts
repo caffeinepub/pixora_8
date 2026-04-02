@@ -19,6 +19,13 @@ export interface Comment {
   'postId' : bigint,
 }
 export type ExternalBlob = Uint8Array;
+export interface Message {
+  'id' : bigint,
+  'text' : string,
+  'recipient' : Principal,
+  'sender' : Principal,
+  'timestamp' : Timestamp,
+}
 export interface Post {
   'id' : bigint,
   'authorUsername' : string,
@@ -31,6 +38,22 @@ export interface Profile {
   'bio' : string,
   'username' : string,
   'profilePicture' : ExternalBlob,
+}
+export interface Reel {
+  'id' : bigint,
+  'authorUsername' : string,
+  'video' : ExternalBlob,
+  'author' : Principal,
+  'timestamp' : Timestamp,
+  'caption' : string,
+}
+export interface ReelComment {
+  'id' : bigint,
+  'authorUsername' : string,
+  'text' : string,
+  'author' : Principal,
+  'timestamp' : Timestamp,
+  'reelId' : bigint,
 }
 export type Timestamp = bigint;
 export type UserRole = { 'admin' : null } |
@@ -65,27 +88,42 @@ export interface _SERVICE {
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addComment' : ActorMethod<[bigint, string], bigint>,
+  'addReelComment' : ActorMethod<[bigint, string], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'createPost' : ActorMethod<[ExternalBlob, string], bigint>,
+  'createReel' : ActorMethod<[ExternalBlob, string], bigint>,
   'getAllPosts' : ActorMethod<[], Array<Post>>,
   'getAllProfiles' : ActorMethod<[], Array<Profile>>,
+  'getAllReels' : ActorMethod<[], Array<Reel>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [Profile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getComments' : ActorMethod<[bigint], Array<Comment>>,
+  'getConversation' : ActorMethod<[Principal], Array<Message>>,
+  'getConversations' : ActorMethod<[], Array<Principal>>,
   'getFollowerCount' : ActorMethod<[Principal], bigint>,
+  'getFollowers' : ActorMethod<[Principal], Array<Principal>>,
   'getFollowing' : ActorMethod<[Principal], Array<Principal>>,
   'getFollowingCount' : ActorMethod<[Principal], bigint>,
   'getLikeCount' : ActorMethod<[bigint], bigint>,
   'getPost' : ActorMethod<[bigint], Post>,
   'getPostsByUser' : ActorMethod<[Principal], Array<Post>>,
   'getProfile' : ActorMethod<[Principal], Profile>,
+  'getReelComments' : ActorMethod<[bigint], Array<ReelComment>>,
+  'getReelLikeCount' : ActorMethod<[bigint], bigint>,
+  'getReelsByUser' : ActorMethod<[Principal], Array<Reel>>,
+  'getSuggestedUsers' : ActorMethod<[], Array<[Principal, Profile]>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [Profile]>,
   'hasLiked' : ActorMethod<[bigint], boolean>,
+  'hasLikedReel' : ActorMethod<[bigint], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isFollowing' : ActorMethod<[Principal], boolean>,
   'saveCallerUserProfile' : ActorMethod<[Profile], undefined>,
+  'searchPosts' : ActorMethod<[string], Array<Post>>,
+  'searchUsers' : ActorMethod<[string], Array<[Principal, Profile]>>,
+  'sendMessage' : ActorMethod<[Principal, string], bigint>,
   'toggleFollow' : ActorMethod<[Principal], undefined>,
   'toggleLike' : ActorMethod<[bigint], undefined>,
+  'toggleReelLike' : ActorMethod<[bigint], undefined>,
   'updateProfile' : ActorMethod<[string, string, ExternalBlob], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
