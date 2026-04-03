@@ -1,14 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -19,7 +11,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Principal } from "@icp-sdk/core/principal";
-import { ArrowLeft, MessageCircle, PenSquare, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  MessageCircle,
+  PenSquare,
+  Search,
+  Send,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -131,19 +129,19 @@ function ConversationList({
                   data-ocid={`chat.conversation.item.${idx + 1}`}
                   onClick={() => onSelect(entry)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors cursor-pointer",
                     selectedPrincipal === key
                       ? "bg-primary/15"
                       : "hover:bg-muted",
                   )}
                 >
-                  <Avatar className="w-10 h-10 shrink-0">
+                  <Avatar className="w-10 h-10 shrink-0 pointer-events-none">
                     <AvatarImage src={avatarSrc} />
                     <AvatarFallback className="avatar-fallback-gradient text-white text-sm font-semibold">
                       {name[0]?.toUpperCase() ?? "?"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 pointer-events-none">
                     <p className="text-sm font-semibold text-foreground truncate">
                       {name}
                     </p>
@@ -187,7 +185,7 @@ function MessageThread({
     ? entry.profile.profilePicture.getDirectURL()
     : undefined;
 
-  // Scroll to bottom whenever messages change (ref mutation, not state dep)
+  // Scroll to bottom whenever messages change
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll on messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -335,16 +333,19 @@ function NewMessageDialog({
   onStartChat: (principal: Principal, profile: Profile | null) => void;
 }) {
   const { actor } = useActor();
-  const [profiles, setProfiles] = useState<[Principal, Profile][]>([]);
+  const [allProfiles, setAllProfiles] = useState<[Principal, Profile][]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open || !actor) return;
+    setSearch("");
     const load = async () => {
       setLoading(true);
       try {
+        // Use searchUsers with empty string to get all users
         const results = await actor.searchUsers("");
-        setProfiles(results as [Principal, Profile][]);
+        setAllProfiles(results as [Principal, Profile][]);
       } catch {
         toast.error("Could not load users.");
       } finally {
@@ -353,6 +354,18 @@ function NewMessageDialog({
     };
     load();
   }, [open, actor]);
+
+  // Client-side filter so we don't depend on cmdk's filter behaviour
+  const filtered = search.trim()
+    ? allProfiles.filter(([, profile]) =>
+        profile?.username?.toLowerCase().includes(search.toLowerCase()),
+      )
+    : allProfiles;
+
+  const handleSelect = (p: Principal, profile: Profile | null) => {
+    onStartChat(p, profile);
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -365,57 +378,67 @@ function NewMessageDialog({
             New Message
           </DialogTitle>
         </DialogHeader>
-        <Command className="bg-transparent">
-          <CommandInput
+
+        {/* Search input */}
+        <div className="px-4 pb-2 relative">
+          <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
             data-ocid="chat.search.input"
             placeholder="Search people..."
-            className="border-none bg-transparent"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-muted border-border rounded-xl text-sm"
+            autoFocus
           />
-          <CommandList className="max-h-64">
-            {loading ? (
-              <div className="p-4 space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-10 rounded-lg bg-muted" />
-                ))}
-              </div>
-            ) : (
-              <>
-                <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-                  No users found.
-                </CommandEmpty>
-                <CommandGroup>
-                  {profiles.map(([p, profile], idx) => {
-                    const name =
-                      profile?.username ?? `${p.toString().slice(0, 8)}...`;
-                    const avatarSrc = profile?.profilePicture
-                      ? profile.profilePicture.getDirectURL()
-                      : undefined;
-                    return (
-                      <CommandItem
-                        key={p.toString()}
-                        value={name}
-                        data-ocid={`chat.user_search.item.${idx + 1}`}
-                        onSelect={() => {
-                          onStartChat(p, profile);
-                          onClose();
-                        }}
-                        className="flex items-center gap-3 cursor-pointer rounded-xl"
-                      >
-                        <Avatar className="w-8 h-8 shrink-0">
-                          <AvatarImage src={avatarSrc} />
-                          <AvatarFallback className="avatar-fallback-gradient text-white text-xs font-semibold">
-                            {name[0]?.toUpperCase() ?? "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{name}</span>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </Command>
+        </div>
+
+        {/* User list */}
+        <ScrollArea className="max-h-64 pb-2">
+          {loading ? (
+            <div className="p-4 space-y-2">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 rounded-lg bg-muted" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No users found.
+            </p>
+          ) : (
+            <div className="px-2">
+              {filtered.map(([p, profile], idx) => {
+                const name =
+                  profile?.username ?? `${p.toString().slice(0, 8)}...`;
+                const avatarSrc = profile?.profilePicture
+                  ? profile.profilePicture.getDirectURL()
+                  : undefined;
+                return (
+                  <button
+                    type="button"
+                    key={p.toString()}
+                    data-ocid={`chat.user_search.item.${idx + 1}`}
+                    onMouseDown={(e) => {
+                      // Use onMouseDown so it fires before dialog focus trapping
+                      e.preventDefault();
+                      handleSelect(p, profile);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <Avatar className="w-8 h-8 shrink-0 pointer-events-none">
+                      <AvatarImage src={avatarSrc} />
+                      <AvatarFallback className="avatar-fallback-gradient text-white text-xs font-semibold">
+                        {name[0]?.toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium pointer-events-none">
+                      {name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
