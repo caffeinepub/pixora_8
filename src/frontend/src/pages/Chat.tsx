@@ -179,11 +179,23 @@ function MessageThread({
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const name =
     entry.profile?.username ?? `${entry.principal.toString().slice(0, 8)}...`;
   const avatarSrc = entry.profile?.profilePicture
     ? entry.profile.profilePicture.getDirectURL()
     : undefined;
+
+  // Auto-focus the input whenever this thread mounts or the conversation changes
+  // This triggers the mobile keyboard to open immediately
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focus on entry change is intentional
+  useEffect(() => {
+    // Small delay to ensure the element is visible and rendered before focusing
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [entry.principal]);
 
   // Scroll to bottom whenever messages change
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll on messages change
@@ -197,6 +209,10 @@ function MessageThread({
     try {
       await onSend(text.trim());
       setText("");
+      // Re-focus input after sending so user can type next message immediately
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     } finally {
       setSending(false);
     }
@@ -301,6 +317,7 @@ function MessageThread({
       {/* Input */}
       <div className="flex items-center gap-2 px-4 py-3 border-t border-border shrink-0">
         <Input
+          ref={inputRef}
           data-ocid="chat.message.input"
           placeholder={`Message ${name}...`}
           value={text}
