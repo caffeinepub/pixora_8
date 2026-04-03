@@ -22,7 +22,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppView } from "../App";
-import type { Message, Profile, backendInterface } from "../backend";
+import type { Message, Profile } from "../backend";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
@@ -61,7 +61,6 @@ function ConversationList({
 }) {
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <h2 className="text-base font-bold text-foreground">Messages</h2>
         <Button
@@ -76,7 +75,6 @@ function ConversationList({
         </Button>
       </div>
 
-      {/* List */}
       <ScrollArea className="flex-1">
         {loading ? (
           <div
@@ -168,6 +166,7 @@ function MessageThread({
   myPrincipal,
   onSend,
   onBack,
+  onReady,
 }: {
   entry: ConversationEntry;
   messages: Message[];
@@ -175,6 +174,8 @@ function MessageThread({
   myPrincipal: string;
   onSend: (text: string) => Promise<void>;
   onBack: () => void;
+  /** Called when the thread animation is done so we can focus the input */
+  onReady?: () => void;
 }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -186,19 +187,17 @@ function MessageThread({
     ? entry.profile.profilePicture.getDirectURL()
     : undefined;
 
-  // Auto-focus the input whenever this thread mounts or the conversation changes
-  // This triggers the mobile keyboard to open immediately
-  // biome-ignore lint/correctness/useExhaustiveDependencies: focus on entry change is intentional
+  // Focus input when the thread becomes ready (after animation)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
-    // Small delay to ensure the element is visible and rendered before focusing
-    const timer = setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
+    if (onReady) return; // parent will call focusInput via onReady
+    // fallback: try focusing directly after a short delay
+    const t = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(t);
   }, [entry.principal]);
 
   // Scroll to bottom whenever messages change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally scroll on messages change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -209,10 +208,7 @@ function MessageThread({
     try {
       await onSend(text.trim());
       setText("");
-      // Re-focus input after sending so user can type next message immediately
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
+      setTimeout(() => inputRef.current?.focus(), 50);
     } finally {
       setSending(false);
     }
@@ -325,6 +321,7 @@ function MessageThread({
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
           className="flex-1 bg-muted border-border rounded-xl text-sm"
           disabled={sending}
+          autoFocus
         />
         <Button
           size="icon"
@@ -360,7 +357,6 @@ function NewMessageDialog({
     const load = async () => {
       setLoading(true);
       try {
-        // Use searchUsers with empty string to get all users
         const results = await actor.searchUsers("");
         setAllProfiles(results as [Principal, Profile][]);
       } catch {
@@ -372,7 +368,6 @@ function NewMessageDialog({
     load();
   }, [open, actor]);
 
-  // Client-side filter so we don't depend on cmdk's filter behaviour
   const filtered = search.trim()
     ? allProfiles.filter(([, profile]) =>
         profile?.username?.toLowerCase().includes(search.toLowerCase()),
@@ -396,7 +391,6 @@ function NewMessageDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Search input */}
         <div className="px-4 pb-2 relative">
           <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -409,7 +403,6 @@ function NewMessageDialog({
           />
         </div>
 
-        {/* User list */}
         <ScrollArea className="max-h-64 pb-2">
           {loading ? (
             <div className="p-4 space-y-2">
@@ -435,7 +428,6 @@ function NewMessageDialog({
                     key={p.toString()}
                     data-ocid={`chat.user_search.item.${idx + 1}`}
                     onMouseDown={(e) => {
-                      // Use onMouseDown so it fires before dialog focus trapping
                       e.preventDefault();
                       handleSelect(p, profile);
                     }}
@@ -468,17 +460,14 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
 
   const [conversations, setConversations] = useState<ConversationEntry[]>([]);
   const [convsLoading, setConvsLoading] = useState(true);
-
   const [selectedEntry, setSelectedEntry] = useState<ConversationEntry | null>(
     null,
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
-
-  const [showThread, setShowThread] = useState(false); // mobile only
+  const [showThread, setShowThread] = useState(false);
   const [newMsgOpen, setNewMsgOpen] = useState(false);
 
-  // Load conversations on mount
   useEffect(() => {
     if (!actor) return;
     const load = async () => {
@@ -505,17 +494,15 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
     load();
   }, [actor]);
 
-  // Load messages for selected conversation + poll every 5s
   useEffect(() => {
     if (!actor || !selectedEntry) return;
     const load = async () => {
       setMessagesLoading(true);
       try {
         const msgs = await actor.getConversation(selectedEntry.principal);
-        const sorted = [...msgs].sort((a, b) =>
-          Number(a.timestamp - b.timestamp),
+        setMessages(
+          [...msgs].sort((a, b) => Number(a.timestamp - b.timestamp)),
         );
-        setMessages(sorted);
       } catch {
         toast.error("Failed to load messages.");
       } finally {
@@ -527,12 +514,11 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
       if (!actor || !selectedEntry) return;
       try {
         const msgs = await actor.getConversation(selectedEntry.principal);
-        const sorted = [...msgs].sort((a, b) =>
-          Number(a.timestamp - b.timestamp),
+        setMessages(
+          [...msgs].sort((a, b) => Number(a.timestamp - b.timestamp)),
         );
-        setMessages(sorted);
       } catch {
-        // Silently fail on poll errors
+        /* silent */
       }
     }, 5000);
     return () => clearInterval(interval);
@@ -547,7 +533,6 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
   const handleSend = async (text: string) => {
     if (!actor || !selectedEntry || !identity) return;
     const myPrin = identity.getPrincipal();
-    // Optimistic append
     const tempId = BigInt(Date.now());
     const optimistic: Message = {
       id: tempId,
@@ -559,13 +544,8 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
     setMessages((prev) => [...prev, optimistic]);
     try {
       await actor.sendMessage(selectedEntry.principal, text);
-      // Refresh for server canonical copy
       const msgs = await actor.getConversation(selectedEntry.principal);
-      const sorted = [...msgs].sort((a, b) =>
-        Number(a.timestamp - b.timestamp),
-      );
-      setMessages(sorted);
-      // Update last message in conversation list
+      setMessages([...msgs].sort((a, b) => Number(a.timestamp - b.timestamp)));
       setConversations((prev) =>
         prev.map((c) =>
           c.principal.toString() === selectedEntry.principal.toString()
@@ -574,16 +554,14 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
         ),
       );
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to send message.";
-      toast.error(msg);
-      // Remove optimistic on failure
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send message.",
+      );
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   };
 
   const handleStartChat = (principal: Principal, profile: Profile | null) => {
-    // Check if conversation already exists
     const existing = conversations.find(
       (c) => c.principal.toString() === principal.toString(),
     );
@@ -606,12 +584,10 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
         className="pixora-card overflow-hidden flex"
         style={{ height: "calc(100vh - 180px)", minHeight: 480 }}
       >
-        {/* Conversation list — always visible on desktop, hidden on mobile when thread open */}
+        {/* Conversation list */}
         <div
           className={cn(
-            "border-r border-border flex-shrink-0",
-            "w-full lg:w-72",
-            // Mobile: hide when thread is open
+            "border-r border-border flex-shrink-0 w-full lg:w-72",
             showThread && selectedEntry
               ? "hidden lg:flex lg:flex-col"
               : "flex flex-col",
@@ -630,7 +606,6 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
         <div
           className={cn(
             "flex-1 flex flex-col",
-            // Mobile: only show when thread is open
             !showThread || !selectedEntry ? "hidden lg:flex" : "flex",
           )}
         >
@@ -641,7 +616,7 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.15 }}
                 className="flex flex-col h-full"
               >
                 <MessageThread

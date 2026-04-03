@@ -88,11 +88,9 @@ export function InternetIdentityProvider({
   children: ReactNode;
   createOptions?: AuthClientCreateOptions;
 }>) {
-  // authClient lives in a ref — never causes re-renders
+  // Store authClient in a ref so it never triggers re-renders or effect re-runs
   const authClientRef = useRef<AuthClient | null>(null);
-  // One-time init guard — prevents double-init in React StrictMode
   const initDoneRef = useRef(false);
-  // Capture createOptions in a ref so the init effect has a stable reference
   const createOptionsRef = useRef(createOptions);
 
   const [identity, setIdentity] = useState<Identity | undefined>(undefined);
@@ -104,37 +102,29 @@ export function InternetIdentityProvider({
     setError(new Error(message));
   }, []);
 
-  // Initialize exactly once on mount
-  useEffect(() => {
-    if (initDoneRef.current) return;
-    initDoneRef.current = true;
+  const handleLoginSuccess = useCallback(() => {
+    const latestIdentity = authClientRef.current?.getIdentity();
+    if (!latestIdentity) {
+      setErrorMessage("Identity not found after successful login");
+      return;
+    }
+    setIdentity(latestIdentity);
+    setStatus("success");
+  }, [setErrorMessage]);
 
-    void (async () => {
-      try {
-        setStatus("initializing");
-        const client = await createAuthClient(createOptionsRef.current);
-        authClientRef.current = client;
-
-        const isAuthenticated = await client.isAuthenticated();
-        if (isAuthenticated) {
-          setIdentity(client.getIdentity());
-        }
-        setStatus("idle");
-      } catch (unknownError) {
-        setStatus("loginError");
-        setError(
-          unknownError instanceof Error
-            ? unknownError
-            : new Error("Initialization failed"),
-        );
-      }
-    })();
-  }, []); // empty — runs exactly once, createOptions accessed via ref
+  const handleLoginError = useCallback(
+    (maybeError?: string) => {
+      setErrorMessage(maybeError ?? "Login failed");
+    },
+    [setErrorMessage],
+  );
 
   const login = useCallback(() => {
     const client = authClientRef.current;
     if (!client) {
-      setErrorMessage("AuthClient is not initialized yet.");
+      setErrorMessage(
+        "AuthClient is not initialized yet. Try again in a moment.",
+      );
       return;
     }
 
@@ -144,32 +134,20 @@ export function InternetIdentityProvider({
       currentIdentity instanceof DelegationIdentity &&
       isDelegationValid(currentIdentity.getDelegation())
     ) {
-      // Already authenticated — surface the identity
-      setIdentity(currentIdentity);
-      setStatus("success");
+      setErrorMessage("User is already authenticated");
       return;
     }
 
     const options: AuthClientLoginOptions = {
       identityProvider: DEFAULT_IDENTITY_PROVIDER,
-      onSuccess: () => {
-        const latestIdentity = authClientRef.current?.getIdentity();
-        if (!latestIdentity) {
-          setErrorMessage("Identity not found after login");
-          return;
-        }
-        setIdentity(latestIdentity);
-        setStatus("success");
-      },
-      onError: (maybeError?: string) => {
-        setErrorMessage(maybeError ?? "Login failed");
-      },
-      maxTimeToLive: ONE_HOUR_IN_NANOSECONDS * BigInt(24 * 30), // 30 days
+      onSuccess: handleLoginSuccess,
+      onError: handleLoginError,
+      maxTimeToLive: ONE_HOUR_IN_NANOSECONDS * BigInt(24 * 30),
     };
 
     setStatus("logging-in");
     void client.login(options);
-  }, [setErrorMessage]);
+  }, [handleLoginError, handleLoginSuccess, setErrorMessage]);
 
   const clear = useCallback(() => {
     const client = authClientRef.current;
@@ -181,6 +159,8 @@ export function InternetIdentityProvider({
     void client
       .logout()
       .then(() => {
+        authClientRef.current = null;
+        initDoneRef.current = false;
         setIdentity(undefined);
         setStatus("idle");
         setError(undefined);
@@ -194,6 +174,45 @@ export function InternetIdentityProvider({
         );
       });
   }, [setErrorMessage]);
+
+  // This effect runs exactly once on mount. No state variables are dependencies.
+  useEffect(() => {
+    // Guard: only initialize once
+    if (initDoneRef.current) return;
+    initDoneRef.current = true;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        setStatus("initializing");
+        const client = await createAuthClient(createOptionsRef.current);
+        if (cancelled) return;
+        authClientRef.current = client;
+        const isAuthenticated = await client.isAuthenticated();
+        if (cancelled) return;
+        if (isAuthenticated) {
+          setIdentity(client.getIdentity());
+        }
+      } catch (unknownError) {
+        if (!cancelled) {
+          setStatus("loginError");
+          setError(
+            unknownError instanceof Error
+              ? unknownError
+              : new Error("Initialization failed"),
+          );
+        }
+      } finally {
+        if (!cancelled) setStatus("idle");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps: run only once on mount
 
   const value = useMemo<ProviderValue>(
     () => ({
