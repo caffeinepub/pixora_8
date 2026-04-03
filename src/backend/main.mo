@@ -129,24 +129,24 @@ actor {
     #byUser : Principal;
   };
 
-  let profiles = Map.empty<Principal, Profile>();
-  let posts = Map.empty<Nat, Post>();
-  let likes = Map.empty<Nat, Like>();
-  let comments = Map.empty<Nat, Comment>();
-  let follows = Map.empty<Nat, Follow>();
-  let reels = Map.empty<Nat, Reel>();
-  let reelLikes = Map.empty<Nat, ReelLike>();
-  let reelComments = Map.empty<Nat, ReelComment>();
-  let messages = Map.empty<Nat, Message>();
+  stable var profiles = Map.empty<Principal, Profile>();
+  stable var posts = Map.empty<Nat, Post>();
+  stable var likes = Map.empty<Nat, Like>();
+  stable var comments = Map.empty<Nat, Comment>();
+  stable var follows = Map.empty<Nat, Follow>();
+  stable var reels = Map.empty<Nat, Reel>();
+  stable var reelLikes = Map.empty<Nat, ReelLike>();
+  stable var reelComments = Map.empty<Nat, ReelComment>();
+  stable var messages = Map.empty<Nat, Message>();
 
-  var nextPostId = 0;
-  var nextLikeId = 0;
-  var nextCommentId = 0;
-  var nextFollowId = 0;
-  var nextReelId = 0;
-  var nextReelLikeId = 0;
-  var nextReelCommentId = 0;
-  var nextMessageId = 0;
+  stable var nextPostId = 0;
+  stable var nextLikeId = 0;
+  stable var nextCommentId = 0;
+  stable var nextFollowId = 0;
+  stable var nextReelId = 0;
+  stable var nextReelLikeId = 0;
+  stable var nextReelCommentId = 0;
+  stable var nextMessageId = 0;
 
   // User Profiles
   public query ({ caller }) func getCallerUserProfile() : async ?Profile {

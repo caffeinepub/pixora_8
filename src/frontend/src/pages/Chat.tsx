@@ -24,8 +24,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppView } from "../App";
-import type { Profile } from "../backend";
-import type { backendInterface as FullBackend, Message } from "../backend.d";
+import type { Message, Profile, backendInterface } from "../backend";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
@@ -335,8 +334,7 @@ function NewMessageDialog({
   onClose: () => void;
   onStartChat: (principal: Principal, profile: Profile | null) => void;
 }) {
-  const { actor: _actor } = useActor();
-  const actor = _actor as unknown as FullBackend | null;
+  const { actor } = useActor();
   const [profiles, setProfiles] = useState<[Principal, Profile][]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -345,7 +343,6 @@ function NewMessageDialog({
     const load = async () => {
       setLoading(true);
       try {
-        // Use searchUsers with empty string to get all principal-profile pairs
         const results = await actor.searchUsers("");
         setProfiles(results as [Principal, Profile][]);
       } catch {
@@ -425,8 +422,7 @@ function NewMessageDialog({
 }
 
 export default function Chat({ navigate: _navigate }: ChatProps) {
-  const { actor: _actor } = useActor();
-  const actor = _actor as unknown as FullBackend | null;
+  const { actor } = useActor();
   const { identity } = useInternetIdentity();
   const myPrincipal = identity?.getPrincipal().toString() ?? "";
 
@@ -476,7 +472,9 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
       setMessagesLoading(true);
       try {
         const msgs = await actor.getConversation(selectedEntry.principal);
-        const sorted = msgs.sort((a, b) => Number(a.timestamp - b.timestamp));
+        const sorted = [...msgs].sort((a, b) =>
+          Number(a.timestamp - b.timestamp),
+        );
         setMessages(sorted);
       } catch {
         toast.error("Failed to load messages.");
@@ -489,7 +487,9 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
       if (!actor || !selectedEntry) return;
       try {
         const msgs = await actor.getConversation(selectedEntry.principal);
-        const sorted = msgs.sort((a, b) => Number(a.timestamp - b.timestamp));
+        const sorted = [...msgs].sort((a, b) =>
+          Number(a.timestamp - b.timestamp),
+        );
         setMessages(sorted);
       } catch {
         // Silently fail on poll errors
@@ -505,12 +505,13 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
   };
 
   const handleSend = async (text: string) => {
-    if (!actor || !selectedEntry) return;
+    if (!actor || !selectedEntry || !identity) return;
+    const myPrin = identity.getPrincipal();
     // Optimistic append
     const tempId = BigInt(Date.now());
     const optimistic: Message = {
       id: tempId,
-      sender: identity!.getPrincipal(),
+      sender: myPrin,
       recipient: selectedEntry.principal,
       text,
       timestamp: BigInt(Date.now()) * 1_000_000n,
@@ -520,7 +521,9 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
       await actor.sendMessage(selectedEntry.principal, text);
       // Refresh for server canonical copy
       const msgs = await actor.getConversation(selectedEntry.principal);
-      const sorted = msgs.sort((a, b) => Number(a.timestamp - b.timestamp));
+      const sorted = [...msgs].sort((a, b) =>
+        Number(a.timestamp - b.timestamp),
+      );
       setMessages(sorted);
       // Update last message in conversation list
       setConversations((prev) =>
@@ -530,8 +533,10 @@ export default function Chat({ navigate: _navigate }: ChatProps) {
             : c,
         ),
       );
-    } catch {
-      toast.error("Failed to send message.");
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to send message.";
+      toast.error(msg);
       // Remove optimistic on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
